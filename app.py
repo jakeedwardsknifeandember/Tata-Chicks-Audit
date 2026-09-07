@@ -281,10 +281,42 @@ if st.session_state.logged_in:
 
         st.divider()
         st.subheader("Verification Sign-Off")
-        canvas_result = st_canvas(fill_color="rgba(255, 255, 255, 0)", stroke_width=3, stroke_color="#000000", background_color="#FFFFFF", height=150, width=400, drawing_mode="freedraw", key="fsco_signature_canvas")
         
-        if canvas_result.image_data is not None and np.any(canvas_result.image_data[:, :, 3] > 0):
-            st.session_state.saved_signature_data = canvas_result.image_data
+        # Dual-version compatible canvas initialization
+        try:
+            canvas_result = st_canvas(
+                fill_color="rgba(255, 255, 255, 0)",
+                stroke_width=3,
+                stroke_color="#000000",
+                background_color="#FFFFFF",
+                height=150,
+                width=400,
+                drawing_mode="freedraw",
+                return_image_data=True,
+                key="fsco_signature_canvas"
+            )
+        except TypeError:
+            canvas_result = st_canvas(
+                fill_color="rgba(255, 255, 255, 0)",
+                stroke_width=3,
+                stroke_color="#000000",
+                background_color="#FFFFFF",
+                height=150,
+                width=400,
+                drawing_mode="freedraw",
+                key="fsco_signature_canvas"
+            )
+        
+        # Defensive image extraction preventing runtime attribute crashes
+        current_canvas_img = None
+        if canvas_result is not None:
+            try:
+                current_canvas_img = canvas_result.image_data
+            except Exception:
+                current_canvas_img = None
+        
+        if current_canvas_img is not None and np.any(current_canvas_img[:, :, 3] > 0):
+            st.session_state.saved_signature_data = current_canvas_img
             
         if st.session_state.get('saved_signature_data') is not None and np.any(st.session_state.saved_signature_data[:, :, 3] > 0):
             st.caption("Signature captured and preserved in session memory.")
@@ -339,7 +371,7 @@ if st.session_state.logged_in:
             st.write(st.session_state.cached_report_text)
 
             signature_saved = False
-            sig_data_to_use = canvas_result.image_data if (canvas_result.image_data is not None and np.any(canvas_result.image_data[:, :, 3] > 0)) else st.session_state.get('saved_signature_data')
+            sig_data_to_use = current_canvas_img if (current_canvas_img is not None and np.any(current_canvas_img[:, :, 3] > 0)) else st.session_state.get('saved_signature_data')
             
             if sig_data_to_use is not None and np.any(sig_data_to_use[:, :, 3] > 0):
                 raw_sketch = Image.fromarray(sig_data_to_use.astype('uint8'), 'RGBA')
